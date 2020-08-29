@@ -1,0 +1,620 @@
+<html>
+    <head>
+        <script src = "jquery-3.5.1.js"></script>
+        <script src = "DataTables/datatables.min.js"></script>
+        <link rel="stylesheet" type="text/css" href="DataTables/datatables.min.css">
+        <script>
+            
+            var projects_table;
+            var tasks_table;
+            var project_idx = -1;
+            var task_idx = -1;
+            var project_selected_state = false;
+            var project_len = 0;
+            var task_len = 0;
+            var current_user = '';
+            $(document).ready(function () {
+                
+                tasks_table = $('#tasks_table').DataTable( {scrollY:'30vh', 
+                    "bSort": false, select: {style: 'single'}, "paging": false, "info": false,
+                    "columnDefs": [{"targets":3, "className": 'select-check-box'}]
+                });
+
+                projects_table = $('#projects_table').DataTable( {scrollY:'30vh', 
+                    "bSort": false, select: {style: 'single'}, "paging": false, "info": false
+                });
+
+                $('#projects_table tbody').on( 'click', 'tr', function () {
+
+                    if (projects_table.rows('.selected')[0].length == 0) {
+                        $(this).toggleClass('selected');
+                        project_idx = this.rowIndex;
+                        document.getElementById("newrow_task").disabled = false;
+                        tasks_table.clear().draw();
+                        task_len = 0;
+                        task_idx = -1;
+                        show_tasks();
+                        document.getElementById('edit_project_text').value = projects_table.row(project_idx - 1).data()[0];
+                    } else {
+                        if (this.rowIndex == project_idx) {
+                            $(this).toggleClass('selected');
+                            project_idx = -1;
+                            document.getElementById("newrow_task").disabled = true;
+                            tasks_table.clear().draw();
+                            task_len = 0;
+                            task_idx = -1;
+                            document.getElementById('edit_project_text').value = '';
+                        } else {
+                            projects_table.rows(project_idx - 1).nodes().to$().toggleClass('selected');
+                            $(this).toggleClass('selected');
+                            project_idx = this.rowIndex;
+                            document.getElementById("newrow_task").disabled = false;
+                            tasks_table.clear().draw();
+                            task_len = 0;
+                            task_idx = -1;
+                            show_tasks();
+                            document.getElementById('edit_project_text').value = projects_table.row(project_idx - 1).data()[0];
+                        }
+                    }
+
+                });
+                
+                $('#tasks_table tbody').on( 'click', 'tr', function () {
+
+                    if (tasks_table.rows('.selected')[0].length == 0) {
+                        $(this).toggleClass('selected');
+                        task_idx = this.rowIndex;
+                        document.getElementById('edit_task_text').value = tasks_table.row(task_idx - 1).data()[1];
+                    } else {
+                        if (this.rowIndex == task_idx) {
+                            $(this).toggleClass('selected');
+                            task_idx = -1;
+                            document.getElementById('edit_task_text').value = '';
+                        } else {
+                            tasks_table.rows(task_idx - 1).nodes().to$().toggleClass('selected');
+                            $(this).toggleClass('selected');
+                            task_idx = this.rowIndex;
+                            document.getElementById('edit_task_text').value = tasks_table.row(task_idx - 1).data()[1];
+                        }
+                    }
+
+                });
+
+                function check_projects() {
+                    let projects = document.getElementById('projects_table');
+                    let r = false;
+                    for(let i = 1; i < projects.rows.length; i++) {
+                        if (projects.rows[i].cells[0].innerText == document.getElementById('new_row_project').value) {
+                            r = true;
+                        }
+                    }
+                    return r;
+                }
+
+                $('#newrow_project').on('click', function(){
+                    if ((!check_projects()) && (document.getElementById('new_row_project').value != '')) {
+                        let project = document.getElementById('new_row_project').value;
+                        let body = 'user=' + encodeURIComponent(current_user) + '&project=' + encodeURIComponent(project);
+                        let xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/newproject', true);
+                        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                        xhr.onreadystatechange = function() {
+                            if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+                                if (xhr.responseText == 'added') {
+                                    project_len++;
+                                    projects_table.row.add([$('#new_row_project')[0].value]).draw(false);
+                                }
+                            }
+                        }
+                        xhr.send(body);
+                    } else {
+                        alert('Project already exists or empty name');
+                    } 
+                });
+
+                function create_event(date_name, checkbox_name, task) {
+                    $('#' + date_name).change(function() {
+                        let body_date = 'user=' + encodeURIComponent(current_user) + '&project=' + encodeURIComponent(projects_table.row(project_idx - 1).data()[0]) + '&task=' + encodeURIComponent(task) + '&new_date=' + encodeURIComponent(document.getElementById(date_name).value);
+                        let xhr_date = new XMLHttpRequest();
+                        xhr_date.open('POST', '/change_date', true);
+                        xhr_date.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                        xhr_date.onreadystatechange = function() {
+                            
+                        }
+                        xhr_date.send(body_date);
+                    });
+                    $('#' + checkbox_name).change(function() {
+                        let val;
+                        if (document.getElementById(checkbox_name).checked) {
+                            val = 1;
+                        } else {
+                            val = 0;
+                        }
+                        let body_checkbox = 'user=' + encodeURIComponent(current_user) + '&project=' + encodeURIComponent(projects_table.row(project_idx - 1).data()[0]) + '&task=' + encodeURIComponent(task) + '&check=' + encodeURIComponent(val);
+                        let xhr_check = new XMLHttpRequest();
+                        xhr_check.open('POST', '/change_checkbox', true);
+                        xhr_check.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                        xhr_check.onreadystatechange = function() {
+
+                        }
+                        xhr_check.send(body_checkbox);
+                    });
+                }
+
+                function check_tasks() {
+                    let tasks = document.getElementById('tasks_table');
+                    let r = false;
+                    for(let i = 1; i < tasks.rows.length; i++) {
+                        if (tasks.rows[i].cells[0].innerText == document.getElementById('new_row_task').value) {
+                            r = true;
+                        }
+                    }
+                    return r;
+                }
+
+                $('#newrow_task').on('click', function(){
+                    if ((!check_tasks()) && ($('#new_row_task')[0].value != '')) {
+                        task_len++;
+                        let checkbox_name = "task_checkbox" + task_len;
+                        let date_name = "task_date" + task_len;
+                        let body = 'user=' + encodeURIComponent(current_user) + '&project=' + encodeURIComponent(projects_table.row(project_idx - 1).data()[0]) + '&task=' + encodeURIComponent($('#new_row_task')[0].value) + '&priority=' + encodeURIComponent(task_len);
+                        let xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/newtask', true);
+                        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                        xhr.onreadystatechange = function() {
+                            if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+                                if (xhr.responseText == 'added') {
+                                    tasks_table.row.add([task_len, $('#new_row_task')[0].value,'<input type="datetime-local" id = \"'+ date_name + '\"></input>',
+                                    '<input type="checkbox" id = \"'+ checkbox_name + '\" ></input>']).draw(false); 
+                                    create_event(date_name, checkbox_name, $('#new_row_task')[0].value)
+                                }
+                            }
+                        }
+                        xhr.send(body);
+                    } else {
+                        alert('Task already exists or empty name');
+                    }
+                });
+
+                function format_date(d, l) {
+                    if (d.toString().length == l) {
+                        return d;
+                    } else {
+                        let r = d;
+                        for(let i = 0; i < (l - d.toString().length); i++) {
+                            r = '0' + r;
+                        }
+                        return r;
+                    }
+                }
+
+                function show_tasks() {
+                    let body = 'user=' + encodeURIComponent(current_user) + '&project=' + encodeURIComponent(projects_table.row(project_idx - 1).data()[0]);
+                    let xhr = new XMLHttpRequest();
+                    let checkbox_name, date_name;
+                    xhr.open('POST', '/showtasks', true);
+                    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+                            let arr = JSON.parse(xhr.responseText);
+                            task_len = 0;
+                            for(let i = 0; i < arr.length; i++) {
+                                task_len++;
+                                checkbox_name = "task_checkbox" + task_len;
+                                date_name = "task_date" + task_len;
+                                tasks_table.row.add([arr[i]["priority"], arr[i]["name"], '<input type="datetime-local" id = \"'+ date_name + '\"></input>', '<input type="checkbox" id = \"'+ checkbox_name + '\"></input>']).draw(false);
+
+                                if (arr[i]["term"] != null) {
+                                    document.getElementById(date_name).value = arr[i]["year"] + '-' + format_date(arr[i]["month"], 2) + '-' + format_date(arr[i]["day"], 2) + 'T' + format_date(arr[i]["hour"], 2) + ':' + format_date(arr[i]["minute"], 2) + ':' + format_date(arr[i]["second"], 2);//'2020-02-01T22:11:55';
+                                }
+                                if (arr[i]["status"] == 1) {
+                                    document.getElementById(checkbox_name).checked = true;
+                                } else {
+                                    document.getElementById(checkbox_name).checked = false;
+                                }
+                                create_event(date_name, checkbox_name, arr[i]["name"]);
+                            }
+                        }
+                    }
+                    xhr.send(body);
+                }
+
+                $('#delrow_project').on('click', function(){
+                    if (project_idx > 0) {
+                        let project = projects_table.row(project_idx - 1).data()[0];
+                        let body = 'project=' + encodeURIComponent(project) + '&user=' + encodeURIComponent(current_user);
+                        let xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/delete_project', true);
+                        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                        xhr.onreadystatechange = function() {
+                            if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+                                if (xhr.responseText == 'deleted') {
+                                    projects_table.row(project_idx - 1).remove().draw();
+                                    project_len--;
+                                    project_idx = -1; 
+                                }
+                            }
+                        }
+                        xhr.send(body);      
+                    }
+                });
+
+                $('#delrow_task').on('click', function(){
+
+                    let body = 'user=' + encodeURIComponent(current_user) + '&project=' + encodeURIComponent(projects_table.row(project_idx - 1).data()[0]) + '&task=' + encodeURIComponent(tasks_table.row(task_idx - 1).data()[1]) + '&priority=' + encodeURIComponent(tasks_table.row(task_idx - 1).data()[0]);
+                    let xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/delete_task', true);
+                    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+                            if (xhr.responseText == 'deleted') {
+                                tasks_table.row(task_idx - 1).remove().draw();
+                                
+                                task_len--;
+                                //recalculate priority
+                                let date_name = '', checkbox_name = '', n = 0;
+                                for(let i = task_idx - 1; i < task_len; i++) {
+                                    tasks_table.row(i).data()[0]--;
+                                    tasks_table.cell({row: i, column: 0}).data(tasks_table.row(i).data()[0]);
+                                }
+                                
+                                for(let i = task_idx - 1; i < task_len; i++) {
+                                //reset date id
+                                    date_name = document.getElementById('task_date' + (i + 2)).id;
+                                    n = parseInt(date_name.substring(9, date_name.length)) - 1;
+                                    document.getElementById('task_date' + (i + 2)).id = "task_date" + n;
+
+                                    //reset status id
+                                    checkbox_name = document.getElementById('task_checkbox' + (i + 2)).id;
+                                    n = parseInt(checkbox_name.substring(13, checkbox_name.length)) - 1;
+                                    document.getElementById('task_checkbox' + (i + 2)).id = "task_checkbox" + n;
+                                }
+                                task_idx = -1;
+                            }
+                        }
+                    }
+                    xhr.send(body);
+                });
+
+                $('#task_priority_up').on('click', function(){
+
+                    if ((task_idx != -1)&&(task_idx > 1)) {
+                        let body = 'user=' + current_user + '&project=' + projects_table.row(project_idx - 1).data()[0] + '&task_down=' + tasks_table.row(task_idx - 2).data()[1] + '&task_up=' + tasks_table.row(task_idx - 1).data()[1];
+                        let xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/change_priority', true);
+                        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                        xhr.onreadystatechange = function() {
+                            if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+                                if (xhr.responseText == 'changed') {
+                                     //project
+                                    let temporary_task = tasks_table.row(task_idx - 2).data()[1];
+                                    tasks_table.row(task_idx - 2).data()[1] = tasks_table.row(task_idx - 1).data()[1];
+                                    tasks_table.cell({row: task_idx - 2, column: 1}).data(tasks_table.row(task_idx - 2).data()[1]);
+                                    tasks_table.row(task_idx - 1).data()[1] = temporary_task;
+                                    tasks_table.cell({row: task_idx - 1, column: 1}).data(tasks_table.row(task_idx - 1).data()[1]);
+
+                                    //date
+                                    let temporary_date = document.getElementById('task_date' + (task_idx - 1)).value;
+                                    document.getElementById('task_date' + (task_idx - 1)).value = document.getElementById('task_date' + task_idx).value
+                                    document.getElementById('task_date' + task_idx).value = temporary_date;
+
+                                    //status
+                                    let temporary_status = document.getElementById('task_checkbox' + (task_idx - 1)).checked;
+                                    document.getElementById('task_checkbox' + (task_idx - 1)).checked = document.getElementById('task_checkbox' + task_idx).checked;
+                                    document.getElementById('task_checkbox' + task_idx).checked = temporary_status;
+
+                                    tasks_table.rows(task_idx - 2).nodes().to$().toggleClass('selected');
+                                    tasks_table.rows(task_idx - 1).nodes().to$().toggleClass('selected');
+    
+                                    task_idx--;
+                                }
+                            }
+                        }
+                        xhr.send(body);
+                    }
+                });
+
+                $('#task_priority_down').on('click', function(){
+                   
+                   if ((task_idx != -1)&&(task_idx != project_len)) {
+                       
+                        let body = 'user=' + current_user + '&project=' + projects_table.row(project_idx - 1).data()[0] + '&task_down=' + tasks_table.row(task_idx - 1).data()[1] + '&task_up=' + tasks_table.row(task_idx).data()[1];
+                        let xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/change_priority', true);
+                        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                        xhr.onreadystatechange = function() {
+                            if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+                                if (xhr.responseText == 'changed') {
+                                    //project
+                                    let temporary_task = tasks_table.row(task_idx).data()[1];
+                                    tasks_table.row(task_idx).data()[1] = tasks_table.row(task_idx - 1).data()[1];
+                                    tasks_table.cell({row: task_idx, column: 1}).data(tasks_table.row(task_idx).data()[1]);
+                                    tasks_table.row(task_idx - 1).data()[1] = temporary_task;
+                                    tasks_table.cell({row: task_idx - 1, column: 1}).data(tasks_table.row(task_idx - 1).data()[1]);
+                   
+                                    //date
+                                    let temporary_date = document.getElementById('task_date' + (task_idx + 1)).value;
+                                    document.getElementById('task_date' + (task_idx + 1)).value = document.getElementById('task_date' + task_idx).value
+                                    document.getElementById('task_date' + task_idx).value = temporary_date;
+
+                                    //status
+                                    let temporary_status = document.getElementById('task_checkbox' + (task_idx + 1)).checked;
+                                    document.getElementById('task_checkbox' + (task_idx + 1)).checked = document.getElementById('task_checkbox' + task_idx).checked;
+                                    document.getElementById('task_checkbox' + task_idx).checked = temporary_status;
+
+                                    tasks_table.rows(task_idx - 1).nodes().to$().toggleClass('selected');
+                                    tasks_table.rows(task_idx).nodes().to$().toggleClass('selected');
+
+                                    task_idx++;
+                                }
+                            }
+                        }
+                        xhr.send(body);
+                   }         
+                });
+
+                $('#edit_project').on('click', function(){
+                    if (project_idx != -1) {
+                        let body = 'user=' + encodeURIComponent(current_user) + '&current_project=' + encodeURIComponent(projects_table.row(project_idx - 1).data()[0]) + '&new_project=' + encodeURIComponent(document.getElementById('edit_project_text').value);
+                        let xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/edit_project', true);
+                        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                        xhr.onreadystatechange = function() {
+                            if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+                                if (xhr.responseText == 'edited') {
+                                    projects_table.row(project_idx - 1).data()[0] = document.getElementById('edit_project_text').value;
+                                    projects_table.cell({row: project_idx - 1, column: 0}).data(projects_table.row(project_idx - 1).data()[0]);
+                                }
+                            }
+                        }
+                        xhr.send(body);
+                    }
+                });
+
+                $('#edit_task').on('click', function(){
+                    if ((task_idx != -1)&&(document.getElementById('edit_task_text').value != '')) {
+                        let body = 'user=' + encodeURIComponent(current_user) + '&project=' + projects_table.row(project_idx - 1).data()[0] + '&task=' + encodeURIComponent(tasks_table.row(task_idx - 1).data()[1]) + '&newtask=' + encodeURIComponent(document.getElementById('edit_task_text').value);
+                        let xhr = new XMLHttpRequest();
+                        xhr.open('POST', '/edit_task', true);
+                        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                        xhr.onreadystatechange = function() {
+                            if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+                                if (xhr.responseText == 'edited') {
+                                    tasks_table.row(task_idx - 1).data()[1] = document.getElementById('edit_task_text').value;
+                                    tasks_table.cell({row: task_idx - 1, column: 1}).data(tasks_table.row(task_idx - 1).data()[1]);
+                                }
+                            }
+                        }
+                        xhr.send(body);
+                    }
+                });
+
+                function show_projects() {
+                    let body = 'user=' + encodeURIComponent(current_user);
+                    let xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/showprojects', true);
+                    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+                            let arr = JSON.parse(xhr.responseText);
+                            for(let i = 0; i < arr.length; i++) {
+                                project_len++;
+                                projects_table.row.add([arr[i]["pr_name"]]).draw(false);
+                            }
+                        }
+                    }
+                    xhr.send(body);
+                }
+
+                $('#login').on('click', function(){
+                    let user_name = document.getElementById('user_name').value;
+                    let user_password = document.getElementById('user_password').value;
+                    let res;
+                    if ((user_name.length < 3) || (user_password.length < 3)) {
+                        document.getElementById('newrow_project').disabled = true;
+                        document.getElementById('current_user').value = '';
+                        current_user = '';
+                        alert('Name or password are too short');
+                        return;
+                    }
+                    projects_table.clear().draw();
+                    tasks_table.clear().draw();
+                    task_len = 0;
+                    task_idx = -1;
+                    document.getElementById('form1').style.display = 'none';
+                    let body = 'name=' + encodeURIComponent(user_name) 
+                    + '&password=' + encodeURIComponent(user_password); 
+                    let xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/log', true);
+                    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+                            res = xhr.responseText;
+                            if (res == 'logged') {
+                                document.getElementById('current_user').value = user_name;
+                                current_user = user_name;
+                                document.getElementById('newrow_project').disabled = false;
+                                document.getElementById("newrow_task").disabled = true;
+                                show_projects();
+                            } else {
+                                document.getElementById('current_user').value = '';
+                                current_user = '';
+                                document.getElementById('newrow_project').disabled = true;
+                                document.getElementById("newrow_task").disabled = true;
+                                alert(res);
+                            }
+                        }
+                    }
+                    xhr.send(body);
+                });
+
+                $('#register').on('click', function(){
+                    let user_name = document.getElementById('user_name').value;
+                    let user_password = document.getElementById('user_password').value;
+                    let res;
+                    if ((user_name.length < 3) || (user_password.length < 3)) {
+                        document.getElementById('current_user').value = '';
+                        current_user = '';
+                        document.getElementById('newrow_project').disabled = true;
+                        document.getElementById("newrow_task").disabled = true;    
+                        alert('Name or password are too short');
+                        return;
+                    }
+                    projects_table.clear().draw();
+                    tasks_table.clear().draw();
+                    task_len = 0;
+                    task_idx = -1;
+                    document.getElementById('form1').style.display = 'none';
+                    let body = 'name=' + encodeURIComponent(user_name) 
+                    + '&password=' + encodeURIComponent(user_password); 
+                    let xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/reg', true);
+                    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+                            res = xhr.responseText;
+                            if (res == 'registered') {
+                                document.getElementById('current_user').value = user_name;
+                                current_user = user_name;
+                                document.getElementById('newrow_project').disabled = false;
+                                document.getElementById("newrow_task").disabled = true;
+                                show_projects();
+                            } else {
+                                document.getElementById('current_user').value = '';
+                                current_user = '';
+                                document.getElementById('newrow_project').disabled = true;
+                                document.getElementById("newrow_task").disabled = true;
+                                projects_table.clear().draw();
+                                tasks_table.clear().draw();
+                                task_len = 0;
+                                task_idx = -1;
+                                alert(res);
+                            }
+                        }
+                    }
+                    xhr.send(body);
+                });
+
+                $('#close_form').on('click', function() {
+                    document.getElementById('form1').style.display = 'none';
+                });
+            });
+            
+            
+        </script>
+        <script>
+            function log_process() {
+                document.getElementById('form1').style.display = 'inline';
+            }
+            function logout_process() {
+                if (current_user != '') {
+                    current_user = '';
+                    tasks_table.clear().draw();
+                    projects_table.clear().draw();
+                    project_idx = -1;
+                    project_len = 0;
+                    task_idx = -1;
+                    task_len = 0;
+                    document.getElementById('newrow_project').disabled = true;
+                    document.getElementById("newrow_task").disabled = true;
+                }
+            }
+        </script>
+        <style>
+            th, td, tr, table {
+                border-top: 0.1px solid black;
+                border-bottom: 0.1px solid black;
+                border-right: 0.1px solid black;
+                border-left: 0.1px solid black;
+                margin-top: 5px;
+            }
+            .header1 {
+                border-width: 3;
+                border-style: solid;
+                background-color: dodgerblue;
+                color: ghostwhite;
+                font-size:x-large;
+                border-color:skyblue;
+                margin-bottom: -15px;
+            }
+            .class_form {
+                position: absolute;
+                background-color:lightskyblue;
+                border-width: 1;
+                border-style: solid;
+                border-color:cornflowerblue;
+                line-height: 250%;
+                top: 30%;
+                left: 40%;
+                height: 20%;
+                width: 20%;
+                z-index: 11;
+                display: none;
+
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <form id="form1" method="POST" action="javascript:void(0);" class="class_form">
+                <b style="margin-left:7%; margin-top: 7%;">Name</b> <input style="margin-left:10%; margin-top: 7%" type="text" id="user_name">
+                <br>
+                <b style="margin-left:7%">Password</b> <input style="margin-left:2%" type="password" id="user_password">
+                <br>
+                <button style="margin-left:32%;" id="login">Login</button>
+                <button id="register">Register</button>
+                <button id="close_form">Close</button>
+            </form>
+        </div>
+
+        <h1> 
+            <div class="header1">
+                <span style="margin-left: 45%;">Planning</span>
+                <span style="float: right;margin-right: 0.5%; margin-top: 4px;"><input type = "text" id = "current_user" disabled/> </span>
+                <span style="float: right;margin-right: 0.5%; margin-top: 4px; font-size:medium;">User</span>
+                <span style="float: right; font-size: large;margin-right: 0.5%; margin-top: 4px;"> <button onclick = "logout_process()"> Logout </button> </span>
+                <span style="float: right; font-size: large;margin-right: 0.5%; margin-top: 4px;"> <button onclick = "log_process()"> Login </button> </span>
+            </div>
+        </h1>
+
+        <input type="text" size = "50%" id = "new_row_project">
+        <button id="newrow_project" disabled = true>add project</button>
+        <button id="delrow_project">delete project</button>
+        <span style="align-items: right">
+            <input type="text" size = "50%" id = "edit_project_text">
+        </style>
+            <button id="edit_project"> edit project</button>
+        </style>
+        <table id = "projects_table">
+            <thead>
+                <tr>
+                    <th width="100%">Project</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+        <input type="text" size = "50%" id = "new_row_task">
+        <button id="newrow_task" disabled = true>add task</button>
+        <button id="delrow_task">delete task</button>
+        <button id="task_priority_up">up</button>
+        <button id="task_priority_down">down</button>
+        <span style="align-items: right">
+            <input type="text" size = "50%" id = "edit_task_text">
+        </style>
+            <button id="edit_task"> edit task</button>
+        </style>
+        <table id = "tasks_table">
+            <thead>
+                <tr>
+                    <th width="5%" >Priority</th>
+                    <th width="70%">Task</th>
+                    <th width="10%">Date</th>
+                    <th width="10%">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </body>
+</html>
