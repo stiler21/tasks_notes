@@ -177,10 +177,10 @@ app.get("/",(req, res) => {
         }
     });
     connection = new syncsql({
-        host: 'localhost',
-        user: 'root',
-        password: '1234',
-        database: 'ldb1'
+        host: 'us-cdbr-east-02.cleardb.com',
+        user: 'bf6bb0b90558bd',
+        password: '1869c24b',
+        database: 'heroku_a20a8e2cff977f0'
     });
 });
 
