@@ -498,26 +498,55 @@
                 $('#close_form').on('click', function() {
                     document.getElementById('form1').style.display = 'none';
                 });
+                
+                let name = '';
+                if (document.cookie != '') {
+                    let arr = document.cookie.split('user_name=');
+                    if (arr != null) {
+                        if (arr[1].indexOf(';') == -1) {
+                            name = arr[1];
+                        } else {
+                            name = arr[1].split(';')[0];
+                        }
+                    }
+                }
+                if (name != '') {
+                    document.getElementById('current_user').value = name;
+                    current_user = name;
+                    document.getElementById('newrow_project').disabled = false;
+                    document.getElementById("newrow_task").disabled = true;
+                    show_projects();
+                }
             });
             
-            
         </script>
+
         <script>
             function log_process() {
                 document.getElementById('form1').style.display = 'inline';
             }
             function logout_process() {
                 if (current_user != '') {
-                    current_user = '';
-                    tasks_table.clear().draw();
-                    projects_table.clear().draw();
-                    project_idx = -1;
-                    project_len = 0;
-                    task_idx = -1;
-                    task_len = 0;
-                    document.getElementById('newrow_project').disabled = true;
-                    document.getElementById("newrow_task").disabled = true;
-                    document.getElementById('current_user').value = '';
+                    let xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/logout', true);
+                    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                    xhr.onreadystatechange = function() {
+                        if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+                            if (xhr.responseText == "logout") {
+                                current_user = '';
+                                tasks_table.clear().draw();
+                                projects_table.clear().draw();
+                                project_idx = -1;
+                                project_len = 0;
+                                task_idx = -1;
+                                task_len = 0;
+                                document.getElementById('newrow_project').disabled = true;
+                                document.getElementById("newrow_task").disabled = true;
+                                document.getElementById('current_user').value = '';
+                            }
+                        }
+                    }
+                    xhr.send();
                 }
             }
         </script>
@@ -554,7 +583,7 @@
             }
         </style>
     </head>
-    <body>
+    <body onunload="refresh()">
         <div>
             <form id="form1" method="POST" action="javascript:void(0);" class="class_form">
                 <b style="margin-left:7%; margin-top: 7%;">Name</b> <input style="margin-left:10%; margin-top: 7%" type="text" id="user_name">
