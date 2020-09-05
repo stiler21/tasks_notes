@@ -4,8 +4,30 @@ let syncsql = require('sync-mysql');
 let bodyParser = require('body-parser');
 let express = require('express');
 let app = express();
+let session = require('express-session');
+let cookieParser = require('cookie-parser');
 var connection;
+let MySqlStore = require('express-mysql-session')(session);
 const port = 8080;
+
+let options = {
+    host: 'us-cdbr-east-02.cleardb.com',
+    port: 3306,
+    user: 'bf6bb0b90558bd',
+    password: '1869c24b',
+    database: 'heroku_a20a8e2cff977f0'
+}
+
+let sessionStore = new MySqlStore(options);
+
+app.use(session({
+    key: 'session_cookie_name',
+    secret: 'session_cookie_secret',
+    store: sessionStore,
+    cookie: { path: '/', httpOnly: true, maxAge: null},
+    resave: false,
+    saveUninitialized: false
+}));
 
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
@@ -163,25 +185,46 @@ app.post("/edit_task", (req, res) => {
 });
 
 app.post("/reg", (req, res) => {
-    res.send(reg_process(req.body["name"], req.body["password"]));
+    let result = reg_process(req.body["name"], req.body["password"]);
+    if (result == 'registered') {
+        var session_data = req.session;
+        session_data.user = req.body["name"];
+    }
+    res.send(result);
 });
 
 app.post("/log", (req, res) => {
-    res.send(log_process(req.body["name"], req.body["password"]));
+    let result = log_process(req.body["name"], req.body["password"]);
+    if (result == 'logged') {
+        var session_data = req.session;
+        session_data.user = req.body["name"];
+    }
+    res.send(result);
+});
+
+app.post("/logout", (req, res) => {
+    req.session.destroy();
+    res.clearCookie("user_name");
+    res.send("logout");
 });
 
 app.get("/",(req, res) => {
-    fs.readFile('planner.html', {encoding: 'utf8'}, function(err, data){
-        if (!err) {
-            res.end(data);
-        }
-    });
     connection = new syncsql({
         host: 'us-cdbr-east-02.cleardb.com',
         user: 'bf6bb0b90558bd',
         password: '1869c24b',
         database: 'heroku_a20a8e2cff977f0'
     });
+    fs.readFile('planner.html', {encoding: 'utf8'}, function(err, data){
+        if (!err) {
+            if (req.session.user) {
+                let sname = req.session.user;
+                res.cookie("user_name", sname);
+            }
+            res.end(data);
+        }
+    });
+    
 });
 
-app.listen(process.env.PORT || 8080);
+app.listen(process.env.PORT || port);
