@@ -5,7 +5,6 @@ let bodyParser = require('body-parser');
 let express = require('express');
 let app = express();
 let session = require('express-session');
-let cookieParser = require('cookie-parser');
 var connection;
 let MySqlStore = require('express-mysql-session')(session);
 const port = 8080;
