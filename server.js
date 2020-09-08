@@ -164,7 +164,9 @@ app.post("/delete_project", (req, res) => {
 });
 
 function edit_project(user, current_project, new_project) {
-    let q = 'update projects set pr_name = ' + '\'' + new_project + '\'' + 'where pr_name = ' + '\'' + current_project + '\'' + ' and user_name = ' + '\'' + user + '\'';
+    let q = 'update tasks set project = ' + '\'' + new_project + '\'' + ' where project = ' + '\'' + current_project + '\'' + ' and user_name = ' + '\'' + user + '\'';
+    connection.query(q);
+    q = 'update projects set pr_name = ' + '\'' + new_project + '\'' + 'where pr_name = ' + '\'' + current_project + '\'' + ' and user_name = ' + '\'' + user + '\'';
     connection.query(q);
     return 'edited';
 }
